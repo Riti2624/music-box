@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Music, Upload, AlertCircle } from "lucide-react";
 import { PixelBackground } from "@/components/PixelBackground";
@@ -16,17 +16,6 @@ export default function Create() {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const savedImage = localStorage.getItem("bgImage");
-    if (!savedImage) return;
-
-    setImagePreview(savedImage);
-    setFormData((prev) => ({
-      ...prev,
-      imageData: savedImage,
-    }));
-  }, []);
 
   const validateImage = (file: File): boolean => {
     const validTypes = ["image/jpeg", "image/png", "image/webp"];
@@ -70,12 +59,6 @@ export default function Create() {
         imageFile: file,
         imageData: base64,
       }));
-
-      try {
-        localStorage.setItem("bgImage", base64);
-      } catch (storageError) {
-        console.warn("Unable to persist background image in localStorage.", storageError);
-      }
 
       setErrors((prev) => ({ ...prev, image: "" }));
     };
@@ -242,7 +225,6 @@ export default function Create() {
                   <button
                     onClick={() => {
                       setImagePreview("");
-                      localStorage.removeItem("bgImage");
                       setFormData((prev) => ({
                         ...prev,
                         imageFile: undefined,

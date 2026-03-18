@@ -1,5 +1,5 @@
 import { useParams, Link, useLocation } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import {
   Play,
   Pause,
@@ -33,17 +33,12 @@ export default function Vibe() {
   const [copied, setCopied] = useState(false);
   const [shareLink, setShareLink] = useState<string>("");
   const [isSharing, setIsSharing] = useState(false);
+  const [isPreparingShare, setIsPreparingShare] = useState(false);
+  const [shareError, setShareError] = useState<string>("");
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [savedBackgroundImage, setSavedBackgroundImage] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-
-  useEffect(() => {
-    const savedImage = localStorage.getItem("bgImage");
-    if (savedImage) {
-      setSavedBackgroundImage(savedImage);
-    }
-  }, []);
+  const inFlightShareRequest = useRef<Promise<string> | null>(null);
 
   useEffect(() => {
     // Load vibe data from session storage
@@ -103,40 +98,74 @@ export default function Vibe() {
     };
   }, [vibeData]);
 
-  const handleShare = async () => {
-    if (!vibeData?.audioFile?.data) return;
+  const createOrGetShareLink = useCallback(async () => {
+    if (!vibeData?.audioFile?.data) {
+      throw new Error("No audio data available for sharing.");
+    }
 
+    if (shareLink) {
+      return shareLink;
+    }
+
+    if (inFlightShareRequest.current) {
+      return inFlightShareRequest.current;
+    }
+
+    setIsPreparingShare(true);
+    setShareError("");
+
+    const request = (async () => {
+      const response = await fetch("/api/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image: vibeData.image,
+          audioFile: vibeData.audioFile,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create link (${response.status}).`);
+      }
+
+      const data = (await response.json()) as CreateShareResponse;
+      const nextLink = `${window.location.origin}/player/${data.id}`;
+      setShareLink(nextLink);
+      return nextLink;
+    })();
+
+    inFlightShareRequest.current = request;
+
+    try {
+      return await request;
+    } finally {
+      inFlightShareRequest.current = null;
+      setIsPreparingShare(false);
+    }
+  }, [vibeData, shareLink]);
+
+  useEffect(() => {
+    if (!vibeData?.audioFile?.data || shareLink) return;
+    void createOrGetShareLink().catch((error) => {
+      console.warn("Background share-link preparation failed:", error);
+      setShareError("Could not pre-create link. Tap Share to retry.");
+    });
+  }, [vibeData, shareLink, createOrGetShareLink]);
+
+  const handleShare = async () => {
     setIsSharing(true);
 
     try {
-      let nextLink = shareLink;
-
-      if (!nextLink) {
-        const response = await fetch("/api/create", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            image: vibeData.image,
-            audioFile: vibeData.audioFile,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to create share link");
-        }
-
-        const data = (await response.json()) as CreateShareResponse;
-        nextLink = `${window.location.origin}/player/${data.id}`;
-        setShareLink(nextLink);
-      }
-
+      const nextLink = await createOrGetShareLink();
       await navigator.clipboard.writeText(nextLink);
       setCopied(true);
+      setShareError("");
       setTimeout(() => setCopied(false), 2000);
-    } catch (shareError) {
-      console.error("Failed to share player:", shareError);
+    } catch (error) {
+      console.error("Failed to share player:", error);
+      setShareError("Link creation failed. Please try again.");
     } finally {
       setIsSharing(false);
     }
@@ -209,7 +238,7 @@ export default function Vibe() {
   }
 
   const hasAudio = Boolean(vibeData.audioFile?.data);
-  const uploadedImage = vibeData.image || savedBackgroundImage;
+  const uploadedImage = vibeData.image;
 
   return (
     <div
@@ -275,23 +304,35 @@ export default function Vibe() {
             </button>
             <button
               onClick={handleShare}
-              disabled={isSharing || !hasAudio}
+              disabled={(isSharing || isPreparingShare) && !shareLink || !hasAudio}
               className={cn(
                 "px-3 sm:px-4 py-2 rounded-lg smooth-transition text-xs sm:text-sm flex items-center gap-2 font-medium",
                 "backdrop-blur-sm border border-white/20",
                 copied
                   ? "bg-green-500/30 text-green-300 border-green-400/50"
                   : "bg-white/10 text-white hover:bg-white/20 hover:border-white/40 glow-effect",
-                (isSharing || !hasAudio) && "opacity-60 cursor-not-allowed"
+                ((isSharing || isPreparingShare) && !shareLink || !hasAudio) && "opacity-60 cursor-not-allowed"
               )}
             >
               <Share2 className="w-4 h-4" />
               <span className="hidden sm:inline">
-                {isSharing ? "Creating..." : copied ? "Copied!" : "Share"}
+                {isSharing
+                  ? "Copying..."
+                  : isPreparingShare && !shareLink
+                    ? "Preparing..."
+                    : copied
+                      ? "Copied!"
+                      : "Share"}
               </span>
             </button>
           </div>
         </header>
+
+        {shareError && (
+          <div className="px-4 sm:px-6 pt-2">
+            <p className="text-xs sm:text-sm text-amber-200/90 text-center">{shareError}</p>
+          </div>
+        )}
 
         {/* Main content */}
         <div className="flex-1 flex items-center justify-center px-4 sm:px-6 pb-8 sm:pb-12">
