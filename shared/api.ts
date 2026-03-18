@@ -25,8 +25,29 @@ export interface SharedPlayerData {
 export interface CreateShareRequest {
   image: string | null;
   audioFile: SharedAudioFile;
+  expiresInHours?: number;
 }
 
 export interface CreateShareResponse {
   id: string;
+  playerUrl: string;
+  expiresAt: string;
+}
+
+export interface SharedPlayerResponse {
+  id: string;
+  imageUrl: string | null;
+  audioUrl: string;
+  audioFileName: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface ManagedShare {
+  id: string;
+  userId: string;
+  audioFileName: string;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
 }

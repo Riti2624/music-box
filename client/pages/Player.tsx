@@ -3,11 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import { Home, Maximize2, Pause, Play, RotateCcw, Share2, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PixelBackground } from "@/components/PixelBackground";
-import { SharedPlayerData } from "@shared/api";
+import { SharedPlayerResponse } from "@shared/api";
 
 export default function Player() {
   const { id } = useParams<{ id: string }>();
-  const [playerData, setPlayerData] = useState<SharedPlayerData | null>(null);
+  const [playerData, setPlayerData] = useState<SharedPlayerResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -33,7 +33,7 @@ export default function Player() {
           throw new Error("This shared player link is invalid or expired.");
         }
 
-        const payload = (await response.json()) as SharedPlayerData;
+        const payload = (await response.json()) as SharedPlayerResponse;
         setPlayerData(payload);
       } catch (requestError) {
         setError(requestError instanceof Error ? requestError.message : "Unable to load player.");
@@ -94,7 +94,7 @@ export default function Player() {
   };
 
   const togglePlayback = async () => {
-    if (!audioRef.current || !playerData?.audioFile?.data) return;
+    if (!audioRef.current || !playerData?.audioUrl) return;
 
     if (audioRef.current.paused) {
       try {
@@ -158,7 +158,7 @@ export default function Player() {
     );
   }
 
-  const hasAudio = Boolean(playerData.audioFile?.data);
+  const hasAudio = Boolean(playerData.audioUrl);
   const sharedBackgroundStyle = {
     backgroundImage: "url(/images.jpg)",
     backgroundSize: "cover",
@@ -216,17 +216,17 @@ export default function Player() {
         <div className="flex-1 flex items-center justify-center px-4 sm:px-6 pb-10">
           <div className="w-full max-w-md animate-fade-in">
             <div className="space-y-4 rounded-3xl border border-white/20 bg-white/10 p-4 sm:p-5 shadow-2xl backdrop-blur-xl">
-              {playerData.image && (
+              {playerData.imageUrl && (
                 <div className="rounded-2xl border border-white/20 bg-white/10 p-2 shadow-xl backdrop-blur-md">
-                  <img src={playerData.image} alt="Cover" className="mx-auto h-auto max-h-[48vh] w-auto max-w-full rounded-xl object-contain" />
+                  <img src={playerData.imageUrl} alt="Cover" className="mx-auto h-auto max-h-[48vh] w-auto max-w-full rounded-xl object-contain" />
                 </div>
               )}
 
-              <audio ref={audioRef} src={playerData.audioFile.data} preload="metadata" />
+              <audio ref={audioRef} src={playerData.audioUrl} preload="metadata" />
 
               <div className="p-4 sm:p-5 rounded-2xl backdrop-blur-xl border animate-fade-in shadow-xl bg-white/10 border-white/20">
                 <div className="mb-4 sm:mb-5 space-y-1.5">
-                  <h2 className="pixel-lg font-bold mb-1 text-white">{playerData.audioFile.name}</h2>
+                  <h2 className="pixel-lg font-bold mb-1 text-white">{playerData.audioFileName}</h2>
                   <p className="text-xs sm:text-sm opacity-70 font-medium text-white">Send this to someone ❤️</p>
                 </div>
 

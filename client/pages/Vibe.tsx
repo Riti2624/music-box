@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PixelBackground } from "@/components/PixelBackground";
 import { CreateShareResponse } from "@shared/api";
+import { getOrCreateUserId } from "@/lib/user";
 
 interface AudioFile {
   name: string;
@@ -115,10 +116,11 @@ export default function Vibe() {
     setShareError("");
 
     const request = (async () => {
-      const response = await fetch("/api/create", {
+      const response = await fetch("/api/share", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-user-id": getOrCreateUserId(),
         },
         body: JSON.stringify({
           image: vibeData.image,
@@ -131,7 +133,7 @@ export default function Vibe() {
       }
 
       const data = (await response.json()) as CreateShareResponse;
-      const nextLink = `${window.location.origin}/player/${data.id}`;
+      const nextLink = `${window.location.origin}${data.playerUrl}`;
       setShareLink(nextLink);
       return nextLink;
     })();

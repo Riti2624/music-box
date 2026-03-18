@@ -32,6 +32,9 @@ export default defineConfig({
         // External dependencies that should not be bundled
         "express",
         "cors",
+        "pg",
+        "@aws-sdk/client-s3",
+        "@aws-sdk/s3-request-presigner",
       ],
       output: {
         format: "es",

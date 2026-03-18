@@ -2,7 +2,12 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { handleDemo } from "./routes/demo";
-import { createSharedPlayer, getSharedPlayerById } from "./routes/share";
+import {
+  createSharedPlayer,
+  getSharedPlayerById,
+  listOwnedShares,
+  revokeOwnedShare,
+} from "./routes/share";
 
 export function createServer() {
   const app = express();
@@ -21,10 +26,13 @@ export function createServer() {
   app.get("/api/demo", handleDemo);
 
   // Shareable player routes
+  app.post("/api/share", createSharedPlayer);
   app.post("/api/create", createSharedPlayer);
   app.post("/create", createSharedPlayer);
   app.get("/api/player/:id", getSharedPlayerById);
   app.get("/api/:id", getSharedPlayerById);
+  app.get("/api/me/shares", listOwnedShares);
+  app.delete("/api/me/shares/:id", revokeOwnedShare);
 
   return app;
 }
